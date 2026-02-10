@@ -40,21 +40,25 @@ namespace NewGenSkillSwapper
 
         private static void DrifterTrashToTreasureController_OnInventoryChanged(On.RoR2.DrifterTrashToTreasureController.orig_OnInventoryChanged orig, DrifterTrashToTreasureController self)
         {
-            self.TryGetComponent<CharacterBody>(out CharacterBody characterBody);
-
-            characterBody.master.TryGetComponent<PlayerCharacterMasterController>(out PlayerCharacterMasterController pcmc);
-            pcmc.TryGetComponent<PlayerCharacterMasterControllerEntitlementTracker>(out PlayerCharacterMasterControllerEntitlementTracker pcmcEntitlement);
-            if (pcmcEntitlement == null)
-            {
-                Debug.Log("RailgunnerTweaks - Exiting TrashToTreasure because entitlement couldn't be verified.");
-                self.enabled = false;
+            if (!self.TryGetComponent<CharacterBody>(out CharacterBody characterBody)) {
                 return;
             }
-            else if (!pcmcEntitlement.HasEntitlement(alloyedCollectiveEntitlement))
-            {
-                Debug.Log("RailgunnerTweaks - Exiting TrashToTreasure because player did not pass entitlement.");
-                self.enabled = false;
-                return;
+
+            if (characterBody.master.TryGetComponent<PlayerCharacterMasterController>(out PlayerCharacterMasterController pcmc)) {
+                if (pcmc.TryGetComponent<PlayerCharacterMasterControllerEntitlementTracker>(out PlayerCharacterMasterControllerEntitlementTracker pcmcEntitlement)) {
+                    if (pcmcEntitlement == null)
+                    {
+                        Debug.Log("RailgunnerTweaks - Exiting TrashToTreasure because entitlement couldn't be verified.");
+                        self.enabled = false;
+                        return;
+                    }
+                    else if (!pcmcEntitlement.HasEntitlement(alloyedCollectiveEntitlement))
+                    {
+                        Debug.Log("RailgunnerTweaks - Exiting TrashToTreasure because player did not pass entitlement.");
+                        self.enabled = false;
+                        return;
+                    }
+                }
             }
 
             treasureDef = SkillCatalog.GetSkillDef(SkillCatalog.FindSkillIndexByName("PassiveStatsFromScrap"));
@@ -154,17 +158,21 @@ namespace NewGenSkillSwapper
 
             if (!((Component)(object)((EntityState)self).characterBody).gameObject.name.Contains("DrifterBody"))
             {
-                self.characterBody.master.TryGetComponent<PlayerCharacterMasterController>(out PlayerCharacterMasterController pcmc);
-                pcmc.TryGetComponent<PlayerCharacterMasterControllerEntitlementTracker>(out PlayerCharacterMasterControllerEntitlementTracker pcmcEntitlement);
-                if (pcmcEntitlement == null)
+                if (self.characterBody.TryGetComponent<PlayerCharacterMasterController>(out PlayerCharacterMasterController pcmc))
                 {
-                    Debug.Log("RailgunnerTweaks - Exiting CastTinker because entitlement couldn't be verified.");
-                    return;
-                }
-                else if (!pcmcEntitlement.HasEntitlement(alloyedCollectiveEntitlement))
-                {
-                    Debug.Log("RailgunnerTweaks - Exiting CastTinker because player did not pass entitlement.");
-                    return;
+                    if (pcmc.TryGetComponent<PlayerCharacterMasterControllerEntitlementTracker>(out PlayerCharacterMasterControllerEntitlementTracker pcmcEntitlement))
+                    {
+                        if (pcmcEntitlement == null)
+                        {
+                            Debug.Log("RailgunnerTweaks - Exiting CastTinker_OnEnter because entitlement couldn't be verified.");
+                            return;
+                        }
+                        else if (!pcmcEntitlement.HasEntitlement(alloyedCollectiveEntitlement))
+                        {
+                            Debug.Log("RailgunnerTweaks - Exiting CastTinker_OnEnter because player did not pass entitlement.");
+                            return;
+                        }
+                    }
                 }
                 ((GenericProjectileBaseState)self).FireProjectile();
                 ((GenericProjectileBaseState)self).DoFireEffects();

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using ExtraSkillSlots;
 using RoR2.Skills;
 using RoR2;
 using UnityEngine;
