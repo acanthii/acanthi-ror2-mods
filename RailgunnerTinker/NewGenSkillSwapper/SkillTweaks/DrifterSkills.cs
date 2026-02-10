@@ -112,7 +112,7 @@ namespace NewGenSkillSwapper
 
         public static void MatchConfig_DrifterExtension(GameObject body)
         {
-            if (configInitialized) { return; }
+            //if (configInitialized) { return; }
             if (!body.TryGetComponent<SkillLocator>(out var skillLocator)) { return; }
             GenericSkill[] skills = [skillLocator.primary, skillLocator.secondary, skillLocator.utility, skillLocator.special];
             GenericSkill trackerSkill = null;
@@ -127,7 +127,15 @@ namespace NewGenSkillSwapper
             }
 
             if (trackerSkill != null) {
-                DrifterTracker tracker = body.gameObject.AddComponent<DrifterTracker>();
+                DrifterTracker tracker;
+                if (!body.gameObject.GetComponent<DrifterTracker>())
+                {
+                    tracker = body.gameObject.AddComponent<DrifterTracker>();
+                }
+                else {
+                    tracker = body.gameObject.GetComponent<DrifterTracker>();
+                }
+
                 tracker.skillInstance = trackerSkill;
             }
 
@@ -147,9 +155,17 @@ namespace NewGenSkillSwapper
 
             if (treasureSkill != null)
             {
-                DrifterTrashToTreasureController treasureController = body.gameObject.AddComponent<DrifterTrashToTreasureController>();
+                DrifterTrashToTreasureController treasureController;
+                if (!body.gameObject.GetComponent<DrifterTrashToTreasureController>())
+                {
+                    treasureController = body.gameObject.AddComponent<DrifterTrashToTreasureController>();
+                }
+                else
+                {
+                    treasureController = body.gameObject.GetComponent<DrifterTrashToTreasureController>();
+                }
             }
-            configInitialized = true;
+            //configInitialized = true;
         }
 
         private static void CastTinker_OnEnter(On.EntityStates.Drifter.CastTinker.orig_OnEnter orig, EntityStates.Drifter.CastTinker self)
