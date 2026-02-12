@@ -109,6 +109,8 @@ namespace ChefBazaar
                 Log.Debug("Client :: " + DateTime.Now.ToString() + " " + DateTime.Now.Millisecond.ToString());
                 NetworkUser user = LocalUserManager.GetFirstLocalUser()?.currentNetworkUser;
                 new NetMessages.RequestChefMessage(user.netIdentity).Send(NetworkDestination.Server);
+
+                //TODO Check for MealPrep, if it's enabled, forcespawn the rocks!
             }
         }
 
@@ -169,7 +171,7 @@ namespace ChefBazaar
             {
                 SpawnTools.EnableVanillaTable(new Vector3(-82.2492f, -47.2163f, 14.0186f));
             }
-            //new NetMessages.SpawnChefTableMessage().Send(NetworkDestination.Clients);
+            new NetMessages.SpawnChefTableMessage().Send(NetworkDestination.Clients);
         }
 
         public static void SpawnChefMoonServer()
@@ -183,7 +185,7 @@ namespace ChefBazaar
             }
 
             SpawnTools.EnableVanillaTable();
-            //new NetMessages.SpawnChefTableMessage().Send(NetworkDestination.Clients);
+            new NetMessages.SpawnChefTableMessage().Send(NetworkDestination.Clients);
         }
         #endregion
     }

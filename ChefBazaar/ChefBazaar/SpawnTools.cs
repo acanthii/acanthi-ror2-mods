@@ -59,7 +59,7 @@ namespace ChefBazaar
             }
 
             if (!chefObject || chefObject == null) {
-                Log.Warning("EnableVanillaTable - CHEF could not be found, exiting...");
+                Log.Warning("EnableVanillaTable - CHEF Platform could not be found, or already is enabled...");
                 return; 
             } 
 
