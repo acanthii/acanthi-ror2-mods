@@ -17,6 +17,7 @@ using ShaderSwapper;
 using System.Linq;
 using RoR2.Hologram;
 using TMPro;
+using System.ComponentModel;
 
 [assembly: HG.Reflection.SearchableAttribute.OptIn]
 
@@ -63,8 +64,34 @@ namespace LunarConstructor
             CreatePrefab();
             Stage.onStageStartGlobal += Stage_onStageStartGlobal;
             On.RoR2.PurchaseInteraction.GetInteractability += LunarConstructor_GetInteractability;
+            On.RoR2.Projectile.TinkerProjectile.TransmuteTargetObject += TinkerProjectile_TransmuteTargetObject;
 
             ConstructorHologramContent = ConstructorCostHologramContentPrefab();
+        }
+
+        private void TinkerProjectile_TransmuteTargetObject(On.RoR2.Projectile.TinkerProjectile.orig_TransmuteTargetObject orig, RoR2.Projectile.TinkerProjectile self, GameObject targetObject)
+        {
+            if (!targetObject.TryGetComponent<TinkerableObjectAttributes>(out var component1))
+            {
+                orig(self, targetObject);
+                return;
+            }
+
+            if (!component1.IsTinkerable)
+            {
+                orig(self, targetObject);
+                return;
+            }
+
+            if (targetObject.TryGetComponent<ConstructorManager>(out var component2))
+            {
+                //Debug.Log("TinkerProjectile_TransmuteTargetObject :: Rerolling...");
+                component2.RollItemsServer();
+                orig(self, targetObject);
+                return;
+            }
+
+            orig(self, targetObject);
         }
 
         private Interactability LunarConstructor_GetInteractability(On.RoR2.PurchaseInteraction.orig_GetInteractability orig, PurchaseInteraction self, Interactor activator)
@@ -150,6 +177,7 @@ namespace LunarConstructor
 
             // Interactable
             ConstructorManager mgr = lunarConstructorPrefab.AddComponent<ConstructorManager>();
+            TinkerableObjectAttributes tinker = lunarConstructorPrefab.AddComponent<TinkerableObjectAttributes>();
             PurchaseInteraction interaction = lunarConstructorPrefab.AddComponent<PurchaseInteraction>();
             interaction.contextToken = "Construct Item (1 Scrap)";
             interaction.NetworkdisplayNameToken = "Lunar Constructor";
