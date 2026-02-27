@@ -25,11 +25,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Reference Include="CookBook">
-	    <HintPath>..\..\..\AppData\Roaming\com.kesomannen.gale\riskofrain2\profiles\ModTesting\BepInEx\plugins\rainorshine-CookBook\CookBook-nstrip.dll</HintPath>
-	  </Reference>
 	  <Reference Include="RiskOfOptions">
-	    <HintPath>..\..\..\AppData\Roaming\com.kesomannen.gale\riskofrain2\profiles\ModTesting\BepInEx\plugins\Rune580-Risk_Of_Options\RiskOfOptions\RiskOfOptions.dll</HintPath>
+	    <HintPath>C:\Users\acanthi\AppData\Roaming\com.kesomannen.gale\riskofrain2\profiles\ModTesting\BepInEx\plugins\Rune580-Risk_Of_Options\RiskOfOptions\RiskOfOptions.dll</HintPath>
 	  </Reference>
 	</ItemGroup>
 
