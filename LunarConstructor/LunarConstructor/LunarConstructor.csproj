@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFramework>netstandard2.1</TargetFramework>
@@ -30,17 +30,12 @@
 
 		<PackageReference Include="R2API.Prefab" Version="1.1.1" />
 
+		<PackageReference Include="Rune580.Mods.RiskOfRain2.RiskOfOptions" Version="2.8.5" />
+
+		<PackageReference Include="Smooth_Salad-ShaderSwapper" Version="1.0.1" />
+
 		<PackageReference Include="UnityEngine.Modules" Version="2021.3.33" IncludeAssets="compile" />
 		<PackageReference Include="MMHOOK.RoR2" Version="2025.11.19" NoWarn="NU1701" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <Reference Include="RiskOfOptions">
-	    <HintPath>C:\Users\acanthi\AppData\Roaming\com.kesomannen.gale\riskofrain2\profiles\ModTesting\BepInEx\plugins\Rune580-Risk_Of_Options\RiskOfOptions\RiskOfOptions.dll</HintPath>
-	  </Reference>
-	  <Reference Include="ShaderSwapper">
-	    <HintPath>C:\Users\acanthi\AppData\Roaming\com.kesomannen.gale\riskofrain2\profiles\ModTesting\BepInEx\plugins\Smooth_Salad-ShaderSwapper\ShaderSwapper.dll</HintPath>
-	  </Reference>
 	</ItemGroup>
 
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">

@@ -92,7 +92,7 @@ namespace LunarConstructor
                 {
                     case "bazaar":
                         {
-                            SpawnLunarConstructor();
+                            SpawnLunarConstructor(new Vector3(-117.5476f, -23.2836f, -7.2528f), Quaternion.Euler(0f, 135f, 0f));
                             break;
                         }
                     default:
@@ -103,8 +103,8 @@ namespace LunarConstructor
             }
         }
 
-        public static void SpawnLunarConstructor() {
-            var constructor = UnityEngine.Object.Instantiate(lunarConstructorPrefab, new Vector3(-117.5476f, -23.2836f, -7.2528f), Quaternion.Euler(0f, 135f, 0f));
+        public static void SpawnLunarConstructor(Vector3 pos, Quaternion rot) {
+            GameObject constructor = UnityEngine.Object.Instantiate(lunarConstructorPrefab, pos, rot);
             NetworkServer.Spawn(constructor);
         }
 
