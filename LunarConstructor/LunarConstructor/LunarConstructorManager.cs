@@ -31,34 +31,57 @@ namespace LunarConstructor
         UniquePickup refreshPrintItem;
 
         [SyncVar]
-        private int whitePickupIndex;
+        private int whitePickupIndex = -1;
         [SyncVar]
-        private int greenPickupIndex;
+        private int greenPickupIndex = -1;
         [SyncVar]
-        private int redPickupIndex;
+        private int redPickupIndex = -1;
         [SyncVar]
-        private int yellowPickupIndex;
+        private int yellowPickupIndex = -1;
 
         private PickupIndex whitePickup {
-            get { return new PickupIndex(whitePickupIndex); }
+            get {
+                if (whitePickupIndex == null || whitePickupIndex < 0) {
+                    return PickupIndex.none;
+                }
+                return new PickupIndex(whitePickupIndex); 
+            }
             set { whitePickupIndex = value.value; }
         }
 
         private PickupIndex greenPickup
         {
-            get { return new PickupIndex(greenPickupIndex); }
+            get {
+                if (greenPickupIndex == null || greenPickupIndex < 0)
+                {
+                    return PickupIndex.none;
+                }
+                return new PickupIndex(greenPickupIndex); 
+            }
             set { greenPickupIndex = value.value; }
         }
 
         private PickupIndex redPickup
         {
-            get { return new PickupIndex(redPickupIndex); }
+            get {
+                if (redPickupIndex == null || redPickupIndex < 0)
+                {
+                    return PickupIndex.none;
+                }
+                return new PickupIndex(redPickupIndex); 
+            }
             set { redPickupIndex = value.value; }
         }
 
         private PickupIndex yellowPickup
         {
-            get { return new PickupIndex(yellowPickupIndex); }
+            get {
+                if (yellowPickupIndex == null || yellowPickupIndex < 0)
+                {
+                    return PickupIndex.none;
+                }
+                return new PickupIndex(yellowPickupIndex); 
+            }
             set { yellowPickupIndex = value.value; }
         }
 
@@ -98,11 +121,17 @@ namespace LunarConstructor
             hologram.disableHologramRotation = true;
         }
 
+        [Server]
         public void RollItemsServer() {
             whitePickup = PickFromList(Run.instance.availableTier1DropList).pickupIndex;
             greenPickup = PickFromList(Run.instance.availableTier2DropList).pickupIndex;
             redPickup = PickFromList(Run.instance.availableTier3DropList).pickupIndex;
             yellowPickup = PickFromList(Run.instance.availableBossDropList).pickupIndex;
+            RpcClearPickup();
+        }
+
+        [ClientRpc]
+        public void RpcClearPickup() {
             pickupDisplay.SetPickup(UniquePickup.none, false);
         }
 
@@ -132,9 +161,9 @@ namespace LunarConstructor
         }
 
         public void UpdateDisplayClient() {
-            Debug.Log(pickupDisplay.GetPickupIndex().ToString());
+            //Debug.Log(pickupDisplay.GetPickupIndex().ToString());
             if (!pickupDisplay) {
-                Debug.Log("No pickupDisplay!");
+                //Debug.Log("No pickupDisplay!");
                 return; 
             }
             if (whitePickup == PickupIndex.none ||
@@ -142,13 +171,14 @@ namespace LunarConstructor
                 redPickup == PickupIndex.none ||
                 yellowPickup == PickupIndex.none
             ) {
-                Debug.Log("pickups are set invalid!");
+                //Debug.Log("pickups are set invalid!");
                 return;
             }
 
             if (pickupDisplay.GetPickupIndex() == PickupIndex.none || pickupDisplay.GetPickupIndex() == null)
             {
-                Debug.Log("Setting pickup to whitePickup!");
+                //Debug.Log("Setting pickup to whitePickup! " + whitePickup.ToString());
+
                 pickupDisplay.SetPickup(new UniquePickup(whitePickup), false);
                 if (currentPickupTierIndex != 1)
                 {
