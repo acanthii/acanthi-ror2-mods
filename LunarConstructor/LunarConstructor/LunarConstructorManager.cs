@@ -60,7 +60,14 @@ namespace LunarConstructor
 
         int currentPickupTierIndex;
 
-        CharacterBody closestPlayer;
+        [SyncVar]
+        private GameObject closestPlayerObject;
+
+        private CharacterBody closestPlayer
+        {
+            get { return closestPlayerObject.GetComponent<CharacterBody>(); }
+            set { closestPlayerObject = value.gameObject; }
+        }
 
         public void Start()
         {
@@ -70,7 +77,7 @@ namespace LunarConstructor
 
                 rng = new Xoroshiro128Plus(Run.instance.treasureRng.nextUlong);
 
-                RollItems();
+                RollItemsServer();
             }
 
             if (!pickupDisplay && !highlight && !hologram)
@@ -84,13 +91,12 @@ namespace LunarConstructor
 
             purchaseInteraction.onPurchase.AddListener(OnPurchase);
 
-            pickupDisplay.SetPickup(new UniquePickup(whitePickup), false);
             refreshPrintItem = UniquePickup.none;
             hologram.contentProvider = this;
             hologram.disableHologramRotation = true;
         }
 
-        public void RollItems() {
+        public void RollItemsServer() {
             whitePickup = PickFromList(Run.instance.availableTier1DropList).pickupIndex;
             greenPickup = PickFromList(Run.instance.availableTier2DropList).pickupIndex;
             redPickup = PickFromList(Run.instance.availableTier3DropList).pickupIndex;
@@ -99,9 +105,12 @@ namespace LunarConstructor
 
         public void FixedUpdate() {
 
-            closestPlayer = GetClosestPlayer();
+            if (NetworkServer.active && Run.instance)
+            {
+                closestPlayer = GetClosestPlayerServer();
+            }
 
-            UpdateDisplay();
+            UpdateDisplayClient();
 
             if (waitingForRefresh)
             {
@@ -119,21 +128,34 @@ namespace LunarConstructor
             }
         }
 
-        public void UpdateDisplay() {
+        public void UpdateDisplayClient() {
             // TODO: when the item is changed, spawn the lunar reroll effect
             if ((bool)pickupDisplay &&
                 whitePickup != PickupIndex.none &&
                 greenPickup != PickupIndex.none &&
                 redPickup != PickupIndex.none &&
-                yellowPickup != PickupIndex.none &&
-                GetBodyHighestScrap(closestPlayer) != null)
+                yellowPickup != PickupIndex.none)
             {
+                if ((GetBodyHighestScrap(closestPlayer) != null) && (pickupDisplay.GetPickupIndex() == PickupIndex.none))
+                {
+                    pickupDisplay.SetPickup(new UniquePickup(whitePickup), false);
+                    if (currentPickupTierIndex != 1)
+                    {
+                        DisplayRerollEffectClient();
+                    }
+                    currentPickupTierIndex = 1;
+                    return;
+                }
+                else if (GetBodyHighestScrap(closestPlayer) != null) {
+                    return;
+                }
                 switch (GetBodyHighestScrap(closestPlayer).tier)
                 {
                     case ItemTier.Boss:
                         pickupDisplay.SetPickup(new UniquePickup(yellowPickup), false);
-                        if (currentPickupTierIndex != 4) {
-                            DisplayRerollEffect();
+                        if (currentPickupTierIndex != 4)
+                        {
+                            DisplayRerollEffectClient();
                         }
                         currentPickupTierIndex = 4;
                         break;
@@ -141,7 +163,7 @@ namespace LunarConstructor
                         pickupDisplay.SetPickup(new UniquePickup(redPickup), false);
                         if (currentPickupTierIndex != 3)
                         {
-                            DisplayRerollEffect();
+                            DisplayRerollEffectClient();
                         }
                         currentPickupTierIndex = 3;
                         break;
@@ -149,7 +171,7 @@ namespace LunarConstructor
                         pickupDisplay.SetPickup(new UniquePickup(greenPickup), false);
                         if (currentPickupTierIndex != 2)
                         {
-                            DisplayRerollEffect();
+                            DisplayRerollEffectClient();
                         }
                         currentPickupTierIndex = 2;
                         break;
@@ -157,7 +179,7 @@ namespace LunarConstructor
                         pickupDisplay.SetPickup(new UniquePickup(whitePickup), false);
                         if (currentPickupTierIndex != 1)
                         {
-                            DisplayRerollEffect();
+                            DisplayRerollEffectClient();
                         }
                         currentPickupTierIndex = 1;
                         break;
@@ -165,7 +187,7 @@ namespace LunarConstructor
             }
         }
 
-        public void DisplayRerollEffect() {
+        public void DisplayRerollEffectClient() {
             EffectManager.SpawnEffect(lunarRerollEffect, new EffectData()
             {
                 origin = pickupDisplay.transform.position,
@@ -211,7 +233,13 @@ namespace LunarConstructor
             return null;
         }
 
-        public CharacterBody GetClosestPlayer() {
+        [Server]
+        public CharacterBody GetClosestPlayerServer() {
+            if (!NetworkServer.active)
+            {
+                Debug.Log("GetClosestPlayerServer() called on client!");
+            }
+
             CharacterBody closestBody = null;
             float closestDistance = 9999f;
 
@@ -222,20 +250,20 @@ namespace LunarConstructor
                     continue;
                 }
 
-                if (pcmc.body == null)
+                if (pcmc.master.GetBody() == null)
                 {
                     continue;
                 }
 
                 float distance = Vector3.Distance(
-                    pcmc.body.transform.position,
+                    pcmc.master.GetBody().transform.position,
                     transform.position
                 );
 
                 // You are automatically closer than nothing. Congrats!
                 if (closestBody == null || distance < closestDistance) 
                 {
-                    closestBody = pcmc.body;
+                    closestBody = pcmc.master.GetBody();
                     closestDistance = distance;
                     continue;
                 }
