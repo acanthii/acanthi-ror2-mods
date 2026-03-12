@@ -122,6 +122,11 @@ namespace LunarConstructor
                             SpawnLunarConstructor(new Vector3(-117.5476f, -23.2836f, -7.2528f), Quaternion.Euler(0f, 135f, 0f));
                             break;
                         }
+                    case "moon2":
+                        {
+                            SpawnLunarConstructor(new Vector3(-232.915f, -186.8033f, -323.1316f), Quaternion.Euler(0f, 64f, 0f));
+                            break;
+                        }
                     default:
                         {
                             return;
