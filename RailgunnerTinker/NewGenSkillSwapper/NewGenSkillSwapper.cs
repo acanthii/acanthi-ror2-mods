@@ -87,6 +87,13 @@ namespace NewGenSkillSwapper
             foreach (SkillSwapConfig item in skillSwapConfig)
             {
                 int skillIdx = SkillCatalog.FindSkillIndexByName(item.skillName);
+                foreach (SkillDef skillDefIterate in SkillCatalog.allSkillDefs)
+                {
+                    if (item.skillName == skillDefIterate.skillNameToken)
+                    {
+                        skillIdx = skillDefIterate.skillIndex;
+                    }
+                }
                 if (skillIdx == -1)
                 {
                     Debug.Log("Couldn't find skill. Skipping...");
