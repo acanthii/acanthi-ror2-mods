@@ -1,16 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using R2API;
+﻿using R2API;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.Networking;
 
-namespace ChefBazaar
-{
-    public class SpawnTools
-    {
+namespace ChefBazaar {
+    public class SpawnTools {
         public static GameObject oldTablePrefab;
+        public static GameObject bridgePrefab;
 
         #region VanillaTable
         public static void SpawnChefMealPrep(Vector3 location, Quaternion rotation) {
@@ -18,7 +14,7 @@ namespace ChefBazaar
             var chef = UnityEngine.Object.Instantiate(chefPrefab, location, rotation);
             NetworkServer.Spawn(chef);
         }
-        
+
         public static void SpawnChefMealPrepOld(Vector3 location, Quaternion rotation) {
             GameObject chefPrefab = Addressables.LoadAssetAsync<GameObject>("RoR2/DLC3/MealPrep/MealPrep.prefab").WaitForCompletion();
             var chef = UnityEngine.Object.Instantiate(chefPrefab, location, rotation);
@@ -26,6 +22,11 @@ namespace ChefBazaar
 
             var table = UnityEngine.Object.Instantiate(oldTablePrefab);
             NetworkServer.Spawn(table);
+        }
+
+        public static void SpawnBridge() {
+            var bridge = UnityEngine.Object.Instantiate(bridgePrefab);
+            NetworkServer.Spawn(bridge);
         }
 
         public static void SpawnScrapper(Vector3 location, Quaternion rotation) {
@@ -49,10 +50,8 @@ namespace ChefBazaar
             GameObject chefObject = null;
             GameObject[] sceneGameObjects = UnityEngine.Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
 
-            foreach (GameObject item in sceneGameObjects)
-            {
-                if (item.name == "HOLDER: Mealprep" && item.activeSelf == false)
-                {
+            foreach (GameObject item in sceneGameObjects) {
+                if (item.name == "HOLDER: Mealprep" && item.activeSelf == false) {
                     chefObject = item;
                     break;
                 }
@@ -60,22 +59,20 @@ namespace ChefBazaar
 
             if (!chefObject || chefObject == null) {
                 Log.Warning("EnableVanillaTable - CHEF Platform could not be found, or already is enabled...");
-                return; 
-            } 
+                return;
+            }
 
             chefObject.gameObject.SetActive(true);
             chefObject.transform.Find("MealPrep").gameObject.SetActive(false);
 
-            if (newLocation != null)
-            {
+            if (newLocation != null) {
                 chefObject.gameObject.transform.position = (Vector3)newLocation;
             }
         }
         #endregion
 
         #region OldTable
-        public static void CreateTablePrefab()
-        {
+        public static void CreateTablePrefab() {
             oldTablePrefab = PrefabAPI.CreateEmptyPrefab("tablePrefab");
 
             oldTablePrefab.AddComponent<NetworkIdentity>();
@@ -106,5 +103,30 @@ namespace ChefBazaar
             PrefabAPI.RegisterNetworkPrefab(oldTablePrefab);
         }
         #endregion
+
+        public static void CreateBridgePrefab() {
+            bridgePrefab = PrefabAPI.CreateEmptyPrefab("bridgePrefab");
+
+            bridgePrefab.AddComponent<NetworkIdentity>();
+
+            GameObject woodfloorPrefab = Addressables.LoadAssetAsync<GameObject>("RoR2/Base/bazaar/Bazaar_WoodFlooring.prefab").WaitForCompletion();
+            GameObject entrywayPrefab = Addressables.LoadAssetAsync<GameObject>("RoR2/Base/bazaar/Bazaar_WoodColumnFullEntryway.prefab").WaitForCompletion();
+
+            GameObject floor = UnityEngine.Object.Instantiate(woodfloorPrefab, bridgePrefab.transform);
+            floor.transform.localPosition = new Vector3(-84.7494f, -26.1813f, 14.1624f);
+            floor.transform.localRotation = Quaternion.Euler(356.42f, 306.6656f, 180.0001f);
+            floor.transform.localScale = new Vector3(0.4477f, 0.2902f, 0.5077f);
+
+            GameObject entryway = UnityEngine.Object.Instantiate(entrywayPrefab, bridgePrefab.transform);
+            entryway.transform.localPosition = new Vector3(-77.2204f, -22.6085f, 16.2715f);
+            entryway.transform.localRotation = Quaternion.Euler(270f, 300.426f, 0f);
+            entryway.transform.localScale = new Vector3(0.3604f, 0.2902f, 0.5077f);
+
+            for (int i = 5; i >= 1; i--) {
+                Object.Destroy(floor.transform.GetChild(i).gameObject);
+            }
+
+            PrefabAPI.RegisterNetworkPrefab(bridgePrefab);
+        }
     }
 }

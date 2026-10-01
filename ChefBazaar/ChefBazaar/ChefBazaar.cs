@@ -1,47 +1,36 @@
-using System;
 using BepInEx;
 using BepInEx.Configuration;
 using R2API;
-using RoR2;
-using UnityEngine;
-using UnityEngine.AddressableAssets;
-using Mono.Cecil.Cil;
-using MonoMod.Cil;
-using System.Collections.Generic;
-using System.IO;
-using UnityEngine.SceneManagement;
-using UnityEngine.UIElements;
-using RoR2.ExpansionManagement;
-using System.Linq;
-using UnityEngine.Networking;
-using RiskOfOptions;
-using RiskOfOptions.Options;
-using RiskOfOptions.OptionConfigs;
 using R2API.Networking;
-using R2API.Networking.Interfaces;
-using BepInEx.Logging;
+using RiskOfOptions;
+using RiskOfOptions.OptionConfigs;
+using RiskOfOptions.Options;
+using RoR2;
+using RoR2.ExpansionManagement;
+using System;
+using System.Collections.Generic;
+using UnityEngine.AddressableAssets;
 
-namespace ChefBazaar
-{
+namespace ChefBazaar {
     [BepInDependency(PrefabAPI.PluginGUID)]
     [BepInDependency(LanguageAPI.PluginGUID)]
     [BepInDependency(NetworkingAPI.PluginGUID)]
     [BepInDependency("com.rune580.riskofoptions")]
     // This attribute is required, and lists metadata for your plugin.
     [BepInPlugin(PluginGUID, PluginName, PluginVersion)]
-    public class ChefBazaar : BaseUnityPlugin
-    {
+    public class ChefBazaar : BaseUnityPlugin {
 
         public const string PluginGUID = PluginAuthor + "." + PluginName;
         public const string PluginAuthor = "acanthi";
         public const string PluginName = "ChefBazaar";
-        public const string PluginVersion = "1.4.1";
+        public const string PluginVersion = "1.6.0";
 
         public static List<String> chefPhrases;
         public static List<String> chefEscapePhrases;
 
         public static ConfigEntry<float> chefChance;
         public static ConfigEntry<bool> spawnScrapper;
+        public static ConfigEntry<bool> oshaCompliance;
         public static ConfigEntry<int> maxUsedTimes;
         public static ConfigEntry<bool> moonChef;
         public static ConfigEntry<bool> moonHooks;
@@ -55,12 +44,12 @@ namespace ChefBazaar
 
         public static Dictionary<PlayerCharacterMasterController, int> usedTimes = new Dictionary<PlayerCharacterMasterController, int>();
 
-        public void Awake()
-        {
+        public void Awake() {
             Log.Init(Logger);
 
             InitConfig();
             SpawnTools.CreateTablePrefab();
+            SpawnTools.CreateBridgePrefab();
 
             NetworkingAPI.RegisterMessageType<NetMessages.RequestChefMessage>();
             NetworkingAPI.RegisterMessageType<NetMessages.SpawnChefTableMessage>();
@@ -70,14 +59,24 @@ namespace ChefBazaar
             LanguageAPI.Add("CHEFBAZAAR_IAMHERE_3", "Tired, mon ami? Surely a meal will help.");
             LanguageAPI.Add("CHEFBAZAAR_IAMHERE_4", "It is okay to take a break every once in a while. Come now.");
             LanguageAPI.Add("CHEFBAZAAR_IAMHERE_5", "Mon Chéri! How wonderful it is to see you here.");
+            LanguageAPI.Add("CHEFBAZAAR_IAMHERE_6", "Ah ah ah, I can already smell the good times!");
+            LanguageAPI.Add("CHEFBAZAAR_IAMHERE_7", "I'd dispense some advice, but how about some good food instead?");
+            LanguageAPI.Add("CHEFBAZAAR_IAMHERE_8", "I wonder... would newt meat taste good? Don't tell him I asked that.");
 
-            chefPhrases = ["CHEFBAZAAR_IAMHERE_1", "CHEFBAZAAR_IAMHERE_2", "CHEFBAZAAR_IAMHERE_3", "CHEFBAZAAR_IAMHERE_4", "CHEFBAZAAR_IAMHERE_5"];
+            chefPhrases = ["CHEFBAZAAR_IAMHERE_1", "CHEFBAZAAR_IAMHERE_2",
+                "CHEFBAZAAR_IAMHERE_3", "CHEFBAZAAR_IAMHERE_4",
+                "CHEFBAZAAR_IAMHERE_5", "CHEFBAZAAR_IAMHERE_6",
+                "CHEFBAZAAR_IAMHERE_7", "CHEFBAZAAR_IAMHERE_8"];
             chefEscapePhrases = ["MEALPREP_DIALOGUE_MOONDETONATION_1", "MEALPREP_DIALOGUE_MOONDETONATION_2", "MEALPREP_DIALOGUE_MOONDETONATION_3"];
 
-            if (spawnScrapper.Value) 
-            {
+            if (spawnScrapper.Value) {
                 LanguageAPI.Add("CHEFBAZAAR_IAMHERE_SCRAPPER", "Please, do not use the scrapper as a garbage bin.");
                 chefPhrases.Add("CHEFBAZAAR_IAMHERE_SCRAPPER");
+            }
+
+            if (oshaCompliance.Value) {
+                LanguageAPI.Add("CHEFBAZAAR_IAMHERE_OSHA", "Cross safely, mon ami! The last customer... did not.");
+                chefPhrases.Add("CHEFBAZAAR_IAMHERE_OSHA");
             }
 
             expansionNeeded = Addressables.LoadAssetAsync<ExpansionDef>("RoR2/DLC3/DLC3.asset").WaitForCompletion();
@@ -87,8 +86,7 @@ namespace ChefBazaar
             Stage.onStageStartGlobal += Hooks.Stage_onStageStartGlobal;
         }
 
-        private void InitConfig()
-        {
+        private void InitConfig() {
             chefChance = Config.Bind(
                 "ChefBazaar",
                 "Wandering CHEF Chance",
@@ -118,6 +116,13 @@ namespace ChefBazaar
                 "Spawn Scrapper",
                 false,
                 "Spawn a Scrapper next to the Wandering CHEF?"
+            );
+
+            oshaCompliance = Config.Bind(
+                "ChefBazaar",
+                "OSHA Compliance",
+                true,
+                "Spawn a bridge next to the Wandering CHEF?"
             );
 
             maxUsedTimes = Config.Bind(
@@ -153,7 +158,8 @@ namespace ChefBazaar
             ModSettingsManager.AddOption(new CheckBoxOption(guaranteedAfterSolusEvent));
             ModSettingsManager.AddOption(new CheckBoxOption(allowedAfterSolusEvent));
             ModSettingsManager.AddOption(new CheckBoxOption(spawnScrapper));
-            ModSettingsManager.AddOption(new IntSliderOption(maxUsedTimes, new IntSliderConfig() { min = 0, max = 100}));
+            ModSettingsManager.AddOption(new CheckBoxOption(oshaCompliance));
+            ModSettingsManager.AddOption(new IntSliderOption(maxUsedTimes, new IntSliderConfig() { min = 0, max = 100 }));
             ModSettingsManager.AddOption(new CheckBoxOption(moonChef));
             ModSettingsManager.AddOption(new CheckBoxOption(moonHooks));
             ModSettingsManager.AddOption(new CheckBoxOption(classicChef));

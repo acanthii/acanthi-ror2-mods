@@ -274,7 +274,7 @@ namespace LunarConstructor
                 }
                 else if (inventory.GetItemCountPermanent(DLC1Content.Items.ScrapWhiteSuppressed) > 0) // WHITE SCRAP (SUPPRESSED)
                 {
-                    tier = ItemTier.Tier2;
+                    tier = ItemTier.Tier1;
                     return DLC1Content.Items.ScrapWhiteSuppressed;
                 }
                 else if (inventory.GetItemCountPermanent(RoR2Content.Items.ScrapWhite) > 0) // WHITE SCRAP

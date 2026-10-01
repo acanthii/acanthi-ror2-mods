@@ -1,0 +1,44 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>netstandard2.1</TargetFramework>
+		<LangVersion>preview</LangVersion>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <None Remove="artifactoftime_assets" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <EmbeddedResource Include="artifactoftime_assets" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="BepInEx.Analyzers" Version="1.0.*">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+
+		<PackageReference Include="BepInEx.Core" Version="5.4.21" />
+
+		<PackageReference Include="Brynzananas-Revive_API" Version="1.3.4" />
+
+		<PackageReference Include="R2API.ContentManagement" Version="1.0.11" />
+
+		<PackageReference Include="R2API.Items" Version="1.0.8" />
+
+		<PackageReference Include="R2API.Language" Version="1.1.0" />
+
+		<PackageReference Include="R2API.Prefab" Version="1.1.1" />
+
+		<PackageReference Include="Rune580.Mods.RiskOfRain2.RiskOfOptions" Version="2.8.5" />
+
+		<PackageReference Include="Smooth_Salad-ShaderSwapper" Version="1.0.1" />
+
+		<PackageReference Include="UnityEngine.Modules" Version="2021.3.33" IncludeAssets="compile" />
+		<PackageReference Include="RiskOfRain2.GameLibs" Version="1.4.1-r.0" />
+		<PackageReference Include="MMHOOK.RoR2" Version="2025.11.19" NoWarn="NU1701" />
+	</ItemGroup>
+
+</Project>

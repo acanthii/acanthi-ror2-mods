@@ -1,25 +1,20 @@
-﻿using System;
+﻿using Mono.Cecil.Cil;
+using MonoMod.Cil;
 using R2API;
 using RoR2;
+using RoR2.Items;
+using System;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
-using static RoR2.Items.BaseItemBodyBehavior;
-using UnityEngine.Networking;
-using RoR2.Items;
-using MonoMod.Cil;
-using Mono.Cecil.Cil;
 
 [assembly: HG.Reflection.SearchableAttribute.OptIn]
 
-namespace DegenerateItems
-{
-    internal class BunnyEars
-    {
+namespace DegenerateItems {
+    internal class BunnyEars {
 
         public static ItemDef BunnyEarsDef;
 
-        internal static void Init()
-        {
+        internal static void Init() {
             CreateLang();
 
             BunnyEarsDef = ScriptableObject.CreateInstance<ItemDef>();
@@ -52,33 +47,28 @@ namespace DegenerateItems
 
             R2API.RecalculateStatsAPI.GetStatCoefficients += RecalculateStatsAPI_GetStatCoefficients;
             //On.RoR2.HealthComponent.TakeDamageProcess += HealthComponent_TakeDamageProcess;
-            IL.RoR2.HealthComponent.TakeDamageProcess += (il) =>
-            {
+            IL.RoR2.HealthComponent.TakeDamageProcess += (il) => {
                 ILCursor c = new ILCursor(il);
                 if (c.TryGotoNext(MoveType.AfterLabel,
                         x => x.MatchLdloc(1),
                         x => x.MatchCallvirt<RoR2.CharacterMaster>("get_inventory"),
                         x => x.MatchLdsfld(typeof(RoR2Content.Items), nameof(RoR2Content.Items.NearbyDamageBonus)),
                         x => x.MatchCallvirt<RoR2.Inventory>("GetItemCountEffective")
-                    ))
-                {
+                    )) {
 
                     c.Emit(OpCodes.Ldarg_0);
                     c.Emit(OpCodes.Ldarg_1);
                     c.Emit(OpCodes.Ldloc_S, (byte)10);
-                    c.EmitDelegate<Func<HealthComponent, DamageInfo, float, float>>((self, damageInfo, accumulatedDamage) =>
-                    {
+                    c.EmitDelegate<Func<HealthComponent, DamageInfo, float, float>>((self, damageInfo, accumulatedDamage) => {
                         CharacterBody attackerBody = damageInfo.attacker.GetComponent<CharacterBody>();
 
-                        if (attackerBody != null)
-                        {
+                        if (attackerBody != null) {
                             int count = attackerBody.inventory ? attackerBody.inventory.GetItemCount(BunnyEarsDef) : 0;
                             Vector3 vector = attackerBody.corePosition - damageInfo.position;
-                            if (count > 0 && damageInfo.attacker.transform.position.y > self.body.gameObject.transform.position.y + self.body.radius)
-                            {
+                            if (count > 0 && damageInfo.attacker.transform.position.y > self.body.gameObject.transform.position.y + self.body.radius) {
                                 damageInfo.damageColorIndex = DamageColorIndex.Nearby;
                                 EffectManager.SimpleImpactEffect(RoR2.HealthComponent.AssetReferences.diamondDamageBonusImpactEffectPrefab, damageInfo.position, vector, transmit: true);
-                                return accumulatedDamage * ( 1f + ((float)count * 0.1f) );
+                                return accumulatedDamage * (1f + ((float)count * 0.1f));
                             }
                         }
 
@@ -86,9 +76,7 @@ namespace DegenerateItems
 
                     });
                     c.Emit(OpCodes.Stloc_S, (byte)10);
-                }
-                else
-                {
+                } else {
                     Log.Error(il.Method.Name + " IL Hook failed!");
                 }
             };
@@ -113,14 +101,12 @@ namespace DegenerateItems
         //    orig(self, damageInfo);
         //}
 
-        private static void RecalculateStatsAPI_GetStatCoefficients(CharacterBody sender, R2API.RecalculateStatsAPI.StatHookEventArgs args)
-        {
+        private static void RecalculateStatsAPI_GetStatCoefficients(CharacterBody sender, R2API.RecalculateStatsAPI.StatHookEventArgs args) {
             int count = sender.inventory ? sender.inventory.GetItemCount(BunnyEarsDef) : 0;
             args.jumpPowerMultAdd += 0.1f * count;
         }
 
-        public static void CreateLang()
-        {
+        public static void CreateLang() {
             LanguageAPI.Add("DEGENERATEITEMS_BUNNYEARS_NAME", "Bunny Ears");
             LanguageAPI.Add("DEGENERATEITEMS_BUNNYEARS_LORE", "\"bunny bunny bunny bunny bunny bunny\"\n\nTwo long pillars rise from the earth, capable of hearing across the cosmos.\n\n\"Brother, what are you-\"\n\n\"bunny bunny bunny bunny bunny bunny\"\n\nA small body, fitting of a warrior.\n\n\"I don't understan-\"\n\n\"bunny bunny bunny bunny bunny bunny\"\n\nTwo legs, capable of darting across the planet in a matter of hours.\n\n\"BROTHER.\"\n\n\"bunny bunny bunn-\"\n\nA loud slam shakes the earth. A pile of dust remains.");
             LanguageAPI.Add("DEGENERATEITEMS_BUNNYEARS_PICKUP", "Gain extra jump height. Enemies below you take more damage.");
@@ -244,6 +230,17 @@ namespace DegenerateItems
                     localScale = new Vector3(7F, 7F, 5.5F)
                 }
             });
+            displayRules.Add("mdlFalseSon", new RoR2.ItemDisplayRule[]{
+                new RoR2.ItemDisplayRule
+                {
+                    ruleType = ItemDisplayRuleType.ParentedPrefab,
+                    followerPrefab = DegenerateItems.DegenerateItemsAssets.LoadAsset<GameObject>("bunnyears_curve.prefab"),
+                    childName = "Head",
+                    localPos = new Vector3(0.01966F, 0.41845F, 0.08426F),
+                    localAngles = new Vector3(0F, 90F, 0F),
+                    localScale = new Vector3(8F, 8F, 8F)
+                }
+            });
             displayRules.Add("mdlVoidSurvivor", new RoR2.ItemDisplayRule[]{
                 new RoR2.ItemDisplayRule
                 {
@@ -272,9 +269,9 @@ namespace DegenerateItems
                     ruleType = ItemDisplayRuleType.ParentedPrefab,
                     followerPrefab = DegenerateItems.DegenerateItemsAssets.LoadAsset<GameObject>("bunnyears_curve.prefab"),
                     childName = "Head",
-                    localPos = new Vector3(-0.22721F, 0.01121F, -0.00024F),
+                    localPos = new Vector3(-0.28433F, 0.0394F, -0.00642F),
                     localAngles = new Vector3(0F, 0F, 90F),
-                    localScale = new Vector3(8F, 8F, 0.7F)
+                    localScale = new Vector3(7F, 7F, 6F)
                 }
             });
             displayRules.Add("mdlDrifter", new RoR2.ItemDisplayRule[]{
@@ -288,11 +285,21 @@ namespace DegenerateItems
                     localScale = new Vector3(8F, 8F, 7F)
                 }
             });
+            displayRules.Add("mdlCroco", new RoR2.ItemDisplayRule[]{
+                new RoR2.ItemDisplayRule
+                {
+                    ruleType = ItemDisplayRuleType.ParentedPrefab,
+                    followerPrefab = DegenerateItems.DegenerateItemsAssets.LoadAsset<GameObject>("bunnyears_curve.prefab"),
+                    childName = "Head",
+                    localPos = new Vector3(-0.02386F, 0.79044F, 1.40061F),
+                    localAngles = new Vector3(359.2067F, 269.6524F, 263.2065F),
+                    localScale = new Vector3(60F, 60F, 60F)
+                }
+            });
             return displayRules;
         }
 
-        public class BunnyEarsBehavior : BaseItemBodyBehavior
-        {
+        public class BunnyEarsBehavior : BaseItemBodyBehavior {
             [ItemDefAssociation(useOnServer = true, useOnClient = true)]
             private static ItemDef GetItemDef() { return BunnyEarsDef; }
             private int GetStackCount() { return stack; }
