@@ -20,19 +20,28 @@ namespace NewGenSkillSwapper {
             public string family;
         }
 
+        public class AKBankConfig {
+            public string survivorOrigin;
+
+            public string survivorTarget;
+        }
+
         public const string PluginGUID = PluginAuthor + "." + PluginName;
         public const string PluginAuthor = "acanthi";
         public const string PluginName = "RailgunnerTinker";
         public const string PluginVersion = "1.0.0";
 
         public static List<SkillSwapConfig> skillSwapConfig = new List<SkillSwapConfig>();
+        public static List<AKBankConfig> akbankConfig = new List<AKBankConfig>();
 
         public static ConfigEntry<string> skillsToSwap;
+        public static ConfigEntry<string> akBankToTransfer;
 
         public static ConfigEntry<bool> debugMode;
 
         public void ParseConfig() {
             skillsToSwap = Config.Bind<string>("RailgunnerTinker", "skillsToSwap", "(Tinker,Railgunner,special),(PassiveStatsFromScrap,Railgunner,passive),(Tinker,Swarmling,special)", "This should NOT be touched if you don't know what you're doing. Theoretically you could use this to add Tinker to more survivors but it's not a supported feature. Here be Dragons! A list of skills to swap. Should be formatted like this: (skillDefName,survivorDefName,family),(otherSkillDefName,otherSurvivorDefName,otherFamily)");
+            akBankToTransfer = Config.Bind<string>("RailgunnerTinker", "akBankToTransfer", "", "This should NOT be touched if you don't know what you're doing. Should be formatted like this (origin -> target): (survivorDefName,survivorDefName)");
             debugMode = Config.Bind<bool>("RailgunnerTinker", "debugMode", false, "Prints all names for skills and survivors.");
             Debug.Log("Parsing Config...");
             string[] array = skillsToSwap.Value.Trim().Split("),(");
@@ -45,6 +54,18 @@ namespace NewGenSkillSwapper {
                     skillName = pieces[0],
                     survivorName = pieces[1],
                     family = pieces[2]
+                });
+            }
+
+            string[] array3 = akBankToTransfer.Value.Trim().Split("),(");
+            string[] array4 = array3;
+            foreach (string item2 in array4) {
+                Debug.Log(item2);
+                string itemTrimmed = item2.Trim('(', ')');
+                string[] pieces = itemTrimmed.Split(',');
+                akbankConfig.Add(new AKBankConfig {
+                    survivorOrigin = pieces[0],
+                    survivorTarget = pieces[1]
                 });
             }
         }
@@ -67,18 +88,25 @@ namespace NewGenSkillSwapper {
         }
 
         public static void MatchConfig() {
+            foreach (AKBankConfig akbankItem in akbankConfig) {
+                SurvivorDef survivorOriginDef = SurvivorCatalog.FindSurvivorDef(akbankItem.survivorOrigin);
+                SurvivorDef survivorTargetDef = SurvivorCatalog.FindSurvivorDef(akbankItem.survivorTarget);
+                if (!survivorOriginDef || !survivorTargetDef) {
+                    Debug.Log("Couldn't transfer AKBank. Skipping...");
+                    continue;
+                }
+                AddSoundbank(survivorOriginDef, survivorTargetDef);
+            }
             foreach (SkillSwapConfig item in skillSwapConfig) {
                 int skillIdx = SkillCatalog.FindSkillIndexByName(item.skillName);
                 if (skillIdx == -1) {
-					foreach (SkillDef skillDefIterate in SkillCatalog.allSkillDefs){
-						if (item.skillName == skillDefIterate.skillNameToken)
-						{
-							skillIdx = skillDefIterate.skillIndex;
-						}
-					}
-				}
-                if (skillIdx == -1)
-                {
+                    foreach (SkillDef skillDefIterate in SkillCatalog.allSkillDefs) {
+                        if (item.skillName == skillDefIterate.skillNameToken) {
+                            skillIdx = skillDefIterate.skillIndex;
+                        }
+                    }
+                }
+                if (skillIdx == -1) {
                     Debug.Log("Couldn't find skill. Skipping...");
                     continue;
                 }
@@ -175,6 +203,25 @@ namespace NewGenSkillSwapper {
         public static void Init() {
             PrintDebug();
             MatchConfig();
+        }
+
+        public static void AddSoundbank(SurvivorDef survivorOrigin, SurvivorDef survivorTarget) {
+            try {
+                GameObject origin = survivorOrigin.bodyPrefab;
+                GameObject target = survivorTarget.bodyPrefab;
+
+                AkBank fsBank = origin.GetComponent<AkBank>();
+                CopyAkBank(fsBank, target);
+            } catch {
+                Debug.Log($"NewGenSkillSwapper - Failed to copy AKBank from {survivorOrigin.cachedName} to {survivorTarget.cachedName}");
+            }
+        }
+
+        public static void CopyAkBank(AkBank original, GameObject destination) {
+            var type = original.GetType();
+            var copy = destination.AddComponent(type);
+            var fields = type.GetFields();
+            foreach (var field in fields) field.SetValue(copy, field.GetValue(original));
         }
     }
 }
