@@ -39,6 +39,7 @@ namespace NewGenSkillSwapper {
 
         public static ConfigEntry<bool> debugMode;
 
+
         public void ParseConfig() {
             skillsToSwap = Config.Bind<string>("RailgunnerTinker", "skillsToSwap", "(Tinker,Railgunner,special),(PassiveStatsFromScrap,Railgunner,passive),(Tinker,Swarmling,special)", "This should NOT be touched if you don't know what you're doing. Theoretically you could use this to add Tinker to more survivors but it's not a supported feature. Here be Dragons! A list of skills to swap. Should be formatted like this: (skillDefName,survivorDefName,family),(otherSkillDefName,otherSurvivorDefName,otherFamily)");
             akBankToTransfer = Config.Bind<string>("RailgunnerTinker", "akBankToTransfer", "", "This should NOT be touched if you don't know what you're doing. Should be formatted like this (origin -> target): (survivorDefName,survivorDefName)");
@@ -47,7 +48,7 @@ namespace NewGenSkillSwapper {
             string[] array = skillsToSwap.Value.Trim().Split("),(");
             string[] array2 = array;
             foreach (string item in array2) {
-                Debug.Log(item);
+                if (string.IsNullOrEmpty(item)) continue;
                 string itemTrimmed = item.Trim('(', ')');
                 string[] pieces = itemTrimmed.Split(',');
                 skillSwapConfig.Add(new SkillSwapConfig {
@@ -60,7 +61,7 @@ namespace NewGenSkillSwapper {
             string[] array3 = akBankToTransfer.Value.Trim().Split("),(");
             string[] array4 = array3;
             foreach (string item2 in array4) {
-                Debug.Log(item2);
+                if (string.IsNullOrEmpty(item2)) continue;
                 string itemTrimmed = item2.Trim('(', ')');
                 string[] pieces = itemTrimmed.Split(',');
                 akbankConfig.Add(new AKBankConfig {
@@ -72,11 +73,11 @@ namespace NewGenSkillSwapper {
 
         public static void PrintDebug() {
             if (debugMode.Value) {
-                Debug.Log("Printing skill names... Disable debugMode in config to disable this!");
+                Log.Debug("Printing skill names... Disable debugMode in config to disable this!");
                 foreach (SkillDef item in SkillCatalog.allSkillDefs) {
-                    Debug.Log(item.skillName + " || Token (for reference, dont use!): " + item.skillNameToken);
+                    Log.Debug(item.skillName + " || Token (for reference, dont use!): " + item.skillNameToken);
                 }
-                Debug.Log("Printing survivor names... Disable debugMode in config to disable this!");
+                Log.Debug("Printing survivor names... Disable debugMode in config to disable this!");
                 {
                     foreach (SurvivorDef item2 in SurvivorCatalog.allSurvivorDefs) {
                         Debug.Log(item2.cachedName);
@@ -84,7 +85,7 @@ namespace NewGenSkillSwapper {
                     return;
                 }
             }
-            Debug.Log("Skipping logs...");
+            Log.Debug("Skipping logs...");
         }
 
         public static void MatchConfig() {
@@ -195,14 +196,17 @@ namespace NewGenSkillSwapper {
         }
 
         private void Awake() {
+            Log.Init(Logger);
+            DrifterSkills.Awake();
             ParseConfig();
-            DrifterSkills.Init();
         }
 
         [SystemInitializer(new Type[] { typeof(SkillCatalog), typeof(SurvivorCatalog) })]
         public static void Init() {
-            PrintDebug();
+            Log.Debug("Initializing!");
+            DrifterSkills.Init();
             MatchConfig();
+            PrintDebug();
         }
 
         public static void AddSoundbank(SurvivorDef survivorOrigin, SurvivorDef survivorTarget) {

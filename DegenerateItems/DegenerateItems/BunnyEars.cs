@@ -47,39 +47,7 @@ namespace DegenerateItems {
 
             R2API.RecalculateStatsAPI.GetStatCoefficients += RecalculateStatsAPI_GetStatCoefficients;
             //On.RoR2.HealthComponent.TakeDamageProcess += HealthComponent_TakeDamageProcess;
-            IL.RoR2.HealthComponent.TakeDamageProcess += (il) => {
-                ILCursor c = new ILCursor(il);
-                if (c.TryGotoNext(MoveType.AfterLabel,
-                        x => x.MatchLdloc(1),
-                        x => x.MatchCallvirt<RoR2.CharacterMaster>("get_inventory"),
-                        x => x.MatchLdsfld(typeof(RoR2Content.Items), nameof(RoR2Content.Items.NearbyDamageBonus)),
-                        x => x.MatchCallvirt<RoR2.Inventory>("GetItemCountEffective")
-                    )) {
-
-                    c.Emit(OpCodes.Ldarg_0);
-                    c.Emit(OpCodes.Ldarg_1);
-                    c.Emit(OpCodes.Ldloc_S, (byte)10);
-                    c.EmitDelegate<Func<HealthComponent, DamageInfo, float, float>>((self, damageInfo, accumulatedDamage) => {
-                        CharacterBody attackerBody = damageInfo.attacker.GetComponent<CharacterBody>();
-
-                        if (attackerBody != null) {
-                            int count = attackerBody.inventory ? attackerBody.inventory.GetItemCount(BunnyEarsDef) : 0;
-                            Vector3 vector = attackerBody.corePosition - damageInfo.position;
-                            if (count > 0 && damageInfo.attacker.transform.position.y > self.body.gameObject.transform.position.y + self.body.radius) {
-                                damageInfo.damageColorIndex = DamageColorIndex.Nearby;
-                                EffectManager.SimpleImpactEffect(RoR2.HealthComponent.AssetReferences.diamondDamageBonusImpactEffectPrefab, damageInfo.position, vector, transmit: true);
-                                return accumulatedDamage * (1f + ((float)count * 0.1f));
-                            }
-                        }
-
-                        return accumulatedDamage;
-
-                    });
-                    c.Emit(OpCodes.Stloc_S, (byte)10);
-                } else {
-                    Log.Error(il.Method.Name + " IL Hook failed!");
-                }
-            };
+            IL.RoR2.HealthComponent.TakeDamageProcess += IL_RoR2_HealthComponent_TakeDamageProcess;
         }
 
         //private static void HealthComponent_TakeDamageProcess(On.RoR2.HealthComponent.orig_TakeDamageProcess orig, HealthComponent self, DamageInfo damageInfo)
@@ -104,6 +72,41 @@ namespace DegenerateItems {
         private static void RecalculateStatsAPI_GetStatCoefficients(CharacterBody sender, R2API.RecalculateStatsAPI.StatHookEventArgs args) {
             int count = sender.inventory ? sender.inventory.GetItemCount(BunnyEarsDef) : 0;
             args.jumpPowerMultAdd += 0.1f * count;
+        }
+
+        private static void IL_RoR2_HealthComponent_TakeDamageProcess(ILContext il) {
+            ILCursor c = new ILCursor(il);
+            if (c.TryGotoNext(MoveType.AfterLabel,
+                    x => x.MatchLdloc(1),
+                    x => x.MatchCallvirt<RoR2.CharacterMaster>("get_inventory"),
+                    x => x.MatchLdsfld(typeof(RoR2Content.Items), nameof(RoR2Content.Items.NearbyDamageBonus)),
+                    x => x.MatchCallvirt<RoR2.Inventory>("GetItemCountEffective")
+                )) {
+
+                c.Emit(OpCodes.Ldarg_0);
+                c.Emit(OpCodes.Ldarg_1);
+                c.Emit(OpCodes.Ldloc_S, (byte)12);
+                c.EmitDelegate<Func<HealthComponent, DamageInfo, float, float>>(AddDamage);
+                c.Emit(OpCodes.Stloc_S, (byte)12);
+            } else {
+                Log.Error(il.Method.Name + " IL Hook failed!");
+            }
+        }
+
+        private static float AddDamage(HealthComponent self, DamageInfo damageInfo, float accumulatedDamage) {
+            CharacterBody attackerBody = damageInfo.attacker.GetComponent<CharacterBody>();
+
+            if (attackerBody != null) {
+                int count = attackerBody.inventory ? attackerBody.inventory.GetItemCount(BunnyEarsDef) : 0;
+                Vector3 vector = attackerBody.corePosition - damageInfo.position;
+                if (count > 0 && damageInfo.attacker.transform.position.y > self.body.gameObject.transform.position.y + self.body.radius) {
+                    damageInfo.damageColorIndex = DamageColorIndex.Nearby;
+                    EffectManager.SimpleImpactEffect(RoR2.HealthComponent.AssetReferences.diamondDamageBonusImpactEffectPrefab, damageInfo.position, vector, transmit: true);
+                    return accumulatedDamage * (1f + ((float)count * 0.1f));
+                }
+            }
+
+            return accumulatedDamage;
         }
 
         public static void CreateLang() {
@@ -294,6 +297,28 @@ namespace DegenerateItems {
                     localPos = new Vector3(-0.02386F, 0.79044F, 1.40061F),
                     localAngles = new Vector3(359.2067F, 269.6524F, 263.2065F),
                     localScale = new Vector3(60F, 60F, 60F)
+                }
+            });
+            displayRules.Add("mdlAcolyteUnion", new RoR2.ItemDisplayRule[]{
+                new RoR2.ItemDisplayRule
+                {
+                    ruleType = ItemDisplayRuleType.ParentedPrefab,
+                    followerPrefab = DegenerateItems.DegenerateItemsAssets.LoadAsset<GameObject>("bunnyears_curve.prefab"),
+                    childName = "Head",
+                    localPos = new Vector3(-0.4239622F, 0.02311641F, 0f),
+                    localAngles = new Vector3(0F, 180F, 270F),
+                    localScale = new Vector3(8F, 8F, 8F)
+                }
+            });
+            displayRules.Add("mdlEnforcer", new RoR2.ItemDisplayRule[]{
+                new RoR2.ItemDisplayRule
+                {
+                    ruleType = ItemDisplayRuleType.ParentedPrefab,
+                    followerPrefab = DegenerateItems.DegenerateItemsAssets.LoadAsset<GameObject>("bunnyears_curve.prefab"),
+                    childName = "Head",
+                    localPos = new Vector3(-0.2168414F, 0.002480507F, -0.002868766F),
+                    localAngles = new Vector3(0F, 180F, 270F),
+                    localScale = new Vector3(5F, 5.0945F, 4F)
                 }
             });
             return displayRules;

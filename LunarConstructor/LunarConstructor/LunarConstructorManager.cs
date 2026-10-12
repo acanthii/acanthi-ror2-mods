@@ -1,21 +1,15 @@
-﻿using System;
+﻿using RoR2;
+using RoR2.Audio;
+using RoR2.Hologram;
+using RoR2.Orbs;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
+using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.Networking;
-using UnityEngine;
-using RoR2;
-using static RoR2.UI.CarouselController;
-using RoR2.Hologram;
-using static MonoMod.InlineRT.MonoModRule;
-using static Rewired.InputMapper;
-using RoR2.Audio;
-using System.Linq;
 
-namespace LunarConstructor
-{
-    public class ConstructorManager : NetworkBehaviour, IHologramContentProvider
-    {
+namespace LunarConstructor {
+    public class ConstructorManager : NetworkBehaviour, IHologramContentProvider {
         public PurchaseInteraction purchaseInteraction;
         public PickupDisplay pickupDisplay;
         public HologramProjector hologram;
@@ -29,6 +23,17 @@ namespace LunarConstructor
         private const float refreshDuration = 1.5f;
         private bool waitingForRefresh;
         UniquePickup refreshPrintItem;
+
+        CharacterBody cachedInteractor = null;
+
+        public enum AccidentType { Lunar, Void, Temp, Hex, None }
+        public List<PickupIndex> GetVoidVariantDropTable(ItemTier itemTier) => itemTier switch {
+            ItemTier.Tier1 => Run.instance.availableVoidTier1DropList,
+            ItemTier.Tier2 => Run.instance.availableVoidTier2DropList,
+            ItemTier.Tier3 => Run.instance.availableVoidTier3DropList,
+            ItemTier.Boss => Run.instance.availableVoidBossDropList,
+            _ => Run.instance.availableVoidTier1DropList
+        };
 
         [SyncVar]
         private int whitePickupIndex = -1;
@@ -44,43 +49,37 @@ namespace LunarConstructor
                 if (whitePickupIndex == null || whitePickupIndex < 0) {
                     return PickupIndex.none;
                 }
-                return new PickupIndex(whitePickupIndex); 
+                return new PickupIndex(whitePickupIndex);
             }
             set { whitePickupIndex = value.value; }
         }
 
-        private PickupIndex greenPickup
-        {
+        private PickupIndex greenPickup {
             get {
-                if (greenPickupIndex == null || greenPickupIndex < 0)
-                {
+                if (greenPickupIndex == null || greenPickupIndex < 0) {
                     return PickupIndex.none;
                 }
-                return new PickupIndex(greenPickupIndex); 
+                return new PickupIndex(greenPickupIndex);
             }
             set { greenPickupIndex = value.value; }
         }
 
-        private PickupIndex redPickup
-        {
+        private PickupIndex redPickup {
             get {
-                if (redPickupIndex == null || redPickupIndex < 0)
-                {
+                if (redPickupIndex == null || redPickupIndex < 0) {
                     return PickupIndex.none;
                 }
-                return new PickupIndex(redPickupIndex); 
+                return new PickupIndex(redPickupIndex);
             }
             set { redPickupIndex = value.value; }
         }
 
-        private PickupIndex yellowPickup
-        {
+        private PickupIndex yellowPickup {
             get {
-                if (yellowPickupIndex == null || yellowPickupIndex < 0)
-                {
+                if (yellowPickupIndex == null || yellowPickupIndex < 0) {
                     return PickupIndex.none;
                 }
-                return new PickupIndex(yellowPickupIndex); 
+                return new PickupIndex(yellowPickupIndex);
             }
             set { yellowPickupIndex = value.value; }
         }
@@ -90,16 +89,13 @@ namespace LunarConstructor
         [SyncVar]
         private GameObject closestPlayerObject;
 
-        private CharacterBody closestPlayer
-        {
+        private CharacterBody closestPlayer {
             get { return closestPlayerObject ? closestPlayerObject.GetComponent<CharacterBody>() : null; }
             set { closestPlayerObject = value ? value.gameObject : null; }
         }
 
-        public void Start()
-        {
-            if (!pickupDisplay && !highlight && !hologram)
-            {
+        public void Start() {
+            if (!pickupDisplay && !highlight && !hologram) {
                 pickupDisplay = transform.Find("PickupDisplay").GetComponent<PickupDisplay>();
                 highlight = transform.Find("PickupDisplay").GetComponent<Highlight>();
                 pickupDisplay.highlight = highlight;
@@ -107,8 +103,7 @@ namespace LunarConstructor
                 hologram = transform.Find("Hologram").GetComponent<HologramProjector>();
             }
 
-            if (NetworkServer.active && Run.instance)
-            {
+            if (NetworkServer.active && Run.instance) {
                 purchaseInteraction.SetAvailable(true);
 
                 RollItemsServer();
@@ -135,28 +130,124 @@ namespace LunarConstructor
             pickupDisplay.SetPickup(UniquePickup.none, false);
         }
 
+        public bool DoAccident(Xoroshiro128Plus rng) {
+            WeightedSelection<AccidentType> weightedSelectionIndex = new WeightedSelection<AccidentType>();
+
+            weightedSelectionIndex.AddChoice(AccidentType.Lunar, LunarConstructor.lunarWeight.Value);
+            weightedSelectionIndex.AddChoice(AccidentType.None, LunarConstructor.nothingWeight.Value);
+
+            if (Run.instance.IsExpansionEnabled(LunarConstructor.alloyedDLC))
+                weightedSelectionIndex.AddChoice(AccidentType.Temp, LunarConstructor.tempWeight.Value);
+            if (Run.instance.IsExpansionEnabled(LunarConstructor.hallowedDLC))
+                weightedSelectionIndex.AddChoice(AccidentType.Hex, LunarConstructor.hexWeight.Value);
+            if (Run.instance.IsExpansionEnabled(LunarConstructor.voidDLC))
+                weightedSelectionIndex.AddChoice(AccidentType.Void, LunarConstructor.voidWeight.Value);
+
+            AccidentType accident = weightedSelectionIndex.Evaluate(Run.instance.runRNG.nextNormalizedFloat);
+
+            if (accident == AccidentType.Temp) {
+                Chat.SendBroadcastChat(new Chat.SimpleChatMessage { baseToken = "<style=cLunarObjective>An unexpected result...</style>" });
+                refreshPrintItem.decayValue = 1f;
+                AttemptGrantPickupDirectly(refreshPrintItem);
+                return true;
+            } else if (accident == AccidentType.Lunar) {
+                Chat.SendBroadcastChat(new Chat.SimpleChatMessage { baseToken = "<style=cLunarObjective>An unexpected result...</style>" });
+                var trollPickupIndex = PickFromList(Run.instance.availableLunarItemDropList).pickupIndex;
+                var trollPickup = new UniquePickup(trollPickupIndex);
+                AttemptGrantPickupDirectly(trollPickup);
+                return true;
+            } else if (accident == AccidentType.Hex) {
+                Chat.SendBroadcastChat(new Chat.SimpleChatMessage { baseToken = "<style=cLunarObjective>An unexpected result...</style>" });
+                var trollPickupIndex = PickFromList(Run.instance.availableHexTierDropList).pickupIndex;
+                var trollPickup = new UniquePickup(trollPickupIndex);
+                AttemptGrantPickupDirectly(trollPickup);
+                return true;
+            } else if (accident == AccidentType.Void) {
+                Chat.SendBroadcastChat(new Chat.SimpleChatMessage {
+                    baseToken = "<style=cLunarObjective>An unexpected result...</style>"
+                });
+
+                var origItemPickupTier = PickupCatalog.GetPickupDef(refreshPrintItem.pickupIndex).itemTier;
+
+                var trollVoidPickupIndex = PickFromList(GetVoidVariantDropTable(origItemPickupTier)).pickupIndex;
+                var trollVoidPickup = new UniquePickup(trollVoidPickupIndex);
+
+                AttemptGrantPickupDirectly(trollVoidPickup);
+                return true;
+            }
+
+            Chat.SendBroadcastChat(new Chat.SimpleChatMessage { baseToken = "<style=cLunarObjective>His laughter echoes in your mind...</style>" });
+            return false;
+        }
+
         public void FixedUpdate() {
 
-            if (NetworkServer.active && Run.instance)
-            {
+            if (NetworkServer.active && Run.instance) {
                 closestPlayer = GetClosestPlayerWithScrapServer();
             }
 
             UpdateDisplayClient();
 
-            if (waitingForRefresh)
-            {
+            if (waitingForRefresh) {
                 refreshTimer -= Time.fixedDeltaTime;
-                if (refreshTimer <= 0f)
-                {
+                if (refreshTimer <= 0f) {
                     purchaseInteraction.SetAvailable(true);
                     waitingForRefresh = false;
-                    if (refreshPrintItem != UniquePickup.none) 
-                    {
-                        PickupDropletController.CreatePickupDroplet(refreshPrintItem, base.transform.position, (base.transform.forward + Vector3.up + Vector3.up) * 8f, true);
+                    if (refreshPrintItem != UniquePickup.none) {
+                        // RNG stuff;
+                        if (NetworkServer.active && Run.instance) {
+                            var rng = Run.instance.treasureRng;
+                            if (rng.RangeFloat(0, 100f) <= LunarConstructor.chanceForAccident.Value) {
+                                DoAccident(rng);
+                            } else {
+                                PickupDropletController.CreatePickupDroplet(refreshPrintItem, base.transform.position, (base.transform.forward + Vector3.up + Vector3.up) * 8f, true);
+                            }
+                        }
                         refreshPrintItem = UniquePickup.none;
                     }
                 }
+            }
+        }
+
+        public void AttemptGrantPickupDirectly(UniquePickup pickup) {
+            if (!NetworkServer.active) return;
+
+            CharacterMaster currentParticipant = cachedInteractor.master;
+            if (!currentParticipant) {
+                PickupDropletController.CreatePickupDroplet(pickup, base.transform.position, (base.transform.forward + Vector3.up + Vector3.up) * 8f, true);
+                return;
+            }
+            PickupDef pickupDef = PickupCatalog.GetPickupDef(pickup.pickupIndex);
+            if (pickupDef == null) {
+                return;
+            }
+            if (pickupDef.itemIndex != ItemIndex.None) {
+                ItemTransferOrb.DispatchItemTransferOrb(new ItemTransferOrb.DispatchArgs {
+                    inventoryToGrantTo = currentParticipant.inventory,
+                    itemIndex = pickupDef.itemIndex,
+                    origin = base.transform.position,
+                    permanentCount = ((!pickup.isTempItem && !pickup.isRental) ? 1 : 0),
+                    temporaryCount = (pickup.isTempItem ? 1 : 0),
+                    rentalCount = (pickup.isRental ? 1 : 0),
+                    travelDuration = 1f,
+                    isPickup = true,
+                    orbDestinationOverride = cachedInteractor.networkIdentity
+                });
+                return;
+            }
+            PickupDef.GrantContext context = new PickupDef.GrantContext {
+                body = cachedInteractor,
+                controller = null,
+                pickup = pickup,
+                position = base.transform.position,
+                rotation = base.transform.rotation
+            };
+            pickupDef.attemptGrant?.Invoke(ref context);
+            if ((bool)cachedInteractor) {
+                cachedInteractor.OnPickup(pickup.isTempItem ? CharacterBody.PickupClass.TempItem : CharacterBody.PickupClass.Item);
+            }
+            if (context.shouldNotify) {
+                GenericPickupController.SendPickupMessage(cachedInteractor.master, pickup);
             }
         }
 
@@ -164,7 +255,7 @@ namespace LunarConstructor
             //Debug.Log(pickupDisplay.GetPickupIndex().ToString());
             if (!pickupDisplay) {
                 //Debug.Log("No pickupDisplay!");
-                return; 
+                return;
             }
             if (whitePickup == PickupIndex.none ||
                 greenPickup == PickupIndex.none ||
@@ -175,13 +266,11 @@ namespace LunarConstructor
                 return;
             }
 
-            if (pickupDisplay.GetPickupIndex() == PickupIndex.none || pickupDisplay.GetPickupIndex() == null)
-            {
+            if (pickupDisplay.GetPickupIndex() == PickupIndex.none || pickupDisplay.GetPickupIndex() == null) {
                 //Debug.Log("Setting pickup to whitePickup! " + whitePickup.ToString());
 
                 pickupDisplay.SetPickup(new UniquePickup(whitePickup), false);
-                if (currentPickupTierIndex != 1)
-                {
+                if (currentPickupTierIndex != 1) {
                     DisplayRerollEffectClient();
                 }
                 currentPickupTierIndex = 1;
@@ -191,8 +280,7 @@ namespace LunarConstructor
                 return;
             }
 
-            switch (GetBodyHighestScrap(closestPlayer).tier)
-            {
+            switch (GetBodyHighestScrap(closestPlayer).tier) {
                 case ItemTier.Boss:
                     pickupDisplay.SetPickup(new UniquePickup(yellowPickup), false);
                     if (currentPickupTierIndex != 4)
@@ -221,8 +309,7 @@ namespace LunarConstructor
         }
 
         public void DisplayRerollEffectClient() {
-            EffectManager.SpawnEffect(lunarRerollEffect, new EffectData()
-            {
+            EffectManager.SpawnEffect(lunarRerollEffect, new EffectData() {
                 origin = pickupDisplay.transform.position,
                 rotation = Quaternion.identity,
                 scale = 2f
@@ -238,7 +325,8 @@ namespace LunarConstructor
             if (body == null) {
                 tier = ItemTier.NoTier;
                 return null;
-            };
+            }
+            ;
 
             var inventory = body.inventory;
             if (body && inventory) {
@@ -246,39 +334,32 @@ namespace LunarConstructor
                 {
                     tier = ItemTier.Boss;
                     return RoR2Content.Items.ScrapYellow;
-                }
-                else if (inventory.GetItemCountPermanent(DLC1Content.Items.ScrapRedSuppressed) > 0) // RED SCRAP (Suppressor)
-                {
+                } else if (inventory.GetItemCountPermanent(DLC1Content.Items.ScrapRedSuppressed) > 0) // RED SCRAP (Suppressor)
+                  {
                     tier = ItemTier.Tier3;
                     return DLC1Content.Items.ScrapRedSuppressed;
-                }
-                else if (inventory.GetItemCountPermanent(RoR2Content.Items.ScrapRed) > 0) // RED SCRAP
-                {
+                } else if (inventory.GetItemCountPermanent(RoR2Content.Items.ScrapRed) > 0) // RED SCRAP
+                  {
                     tier = ItemTier.Tier3;
                     return RoR2Content.Items.ScrapRed;
-                }
-                else if (inventory.GetItemCountPermanent(DLC1Content.Items.RegeneratingScrap) > 0) // GREEN SCRAP (REGEN)
-                {
+                } else if (inventory.GetItemCountPermanent(DLC1Content.Items.RegeneratingScrap) > 0) // GREEN SCRAP (REGEN)
+                  {
                     tier = ItemTier.Tier2;
                     return DLC1Content.Items.RegeneratingScrap;
-                }
-                else if (inventory.GetItemCountPermanent(DLC1Content.Items.ScrapGreenSuppressed) > 0) // GREEN SCRAP (SUPPRESSED)
-                {
+                } else if (inventory.GetItemCountPermanent(DLC1Content.Items.ScrapGreenSuppressed) > 0) // GREEN SCRAP (SUPPRESSED)
+                  {
                     tier = ItemTier.Tier2;
                     return DLC1Content.Items.ScrapGreenSuppressed;
-                }
-                else if (inventory.GetItemCountPermanent(RoR2Content.Items.ScrapGreen) > 0) // GREEN SCRAP
-                {
+                } else if (inventory.GetItemCountPermanent(RoR2Content.Items.ScrapGreen) > 0) // GREEN SCRAP
+                  {
                     tier = ItemTier.Tier2;
                     return RoR2Content.Items.ScrapGreen;
-                }
-                else if (inventory.GetItemCountPermanent(DLC1Content.Items.ScrapWhiteSuppressed) > 0) // WHITE SCRAP (SUPPRESSED)
-                {
+                } else if (inventory.GetItemCountPermanent(DLC1Content.Items.ScrapWhiteSuppressed) > 0) // WHITE SCRAP (SUPPRESSED)
+                  {
                     tier = ItemTier.Tier1;
                     return DLC1Content.Items.ScrapWhiteSuppressed;
-                }
-                else if (inventory.GetItemCountPermanent(RoR2Content.Items.ScrapWhite) > 0) // WHITE SCRAP
-                {
+                } else if (inventory.GetItemCountPermanent(RoR2Content.Items.ScrapWhite) > 0) // WHITE SCRAP
+                  {
                     tier = ItemTier.Tier1;
                     return RoR2Content.Items.ScrapWhite;
                 }
@@ -289,8 +370,7 @@ namespace LunarConstructor
 
         [Server]
         public CharacterBody GetClosestPlayerServer() {
-            if (!NetworkServer.active)
-            {
+            if (!NetworkServer.active) {
                 Debug.Log("GetClosestPlayerServer() called on client!");
             }
 
@@ -299,13 +379,11 @@ namespace LunarConstructor
 
             foreach (PlayerCharacterMasterController pcmc in PlayerCharacterMasterController.instances) {
 
-                if (pcmc == null) 
-                {
+                if (pcmc == null) {
                     continue;
                 }
 
-                if (pcmc.master.GetBody() == null)
-                {
+                if (pcmc.master.GetBody() == null) {
                     continue;
                 }
 
@@ -315,8 +393,7 @@ namespace LunarConstructor
                 );
 
                 // You are automatically closer than nothing. Congrats!
-                if (closestBody == null || distance < closestDistance) 
-                {
+                if (closestBody == null || distance < closestDistance) {
                     closestBody = pcmc.master.GetBody();
                     closestDistance = distance;
                     continue;
@@ -327,31 +404,25 @@ namespace LunarConstructor
         }
 
         [Server]
-        public CharacterBody GetClosestPlayerWithScrapServer()
-        {
-            if (!NetworkServer.active)
-            {
+        public CharacterBody GetClosestPlayerWithScrapServer() {
+            if (!NetworkServer.active) {
                 Debug.Log("GetClosestPlayerServerWithScrap() called on client!");
             }
 
             CharacterBody closestBody = null;
             float closestDistance = 9999f;
 
-            foreach (PlayerCharacterMasterController pcmc in PlayerCharacterMasterController.instances)
-            {
+            foreach (PlayerCharacterMasterController pcmc in PlayerCharacterMasterController.instances) {
 
-                if (pcmc == null)
-                {
+                if (pcmc == null) {
                     continue;
                 }
 
-                if (pcmc.master.GetBody() == null)
-                {
+                if (pcmc.master.GetBody() == null) {
                     continue;
                 }
 
-                if (GetBodyHighestScrap(pcmc.master.GetBody()) == null)
-                {
+                if (GetBodyHighestScrap(pcmc.master.GetBody()) == null) {
                     continue;
                 }
 
@@ -361,8 +432,7 @@ namespace LunarConstructor
                 );
 
                 // You are automatically closer than nothing. Congrats!
-                if (closestBody == null || distance < closestDistance)
-                {
+                if (closestBody == null || distance < closestDistance) {
                     closestBody = pcmc.master.GetBody();
                     closestDistance = distance;
                     continue;
@@ -372,30 +442,24 @@ namespace LunarConstructor
             return closestBody;
         }
 
-        public bool PassesFilter(PickupIndex pickupIndex)
-        {
-            if (bannedItemTag == ItemTag.Any)
-            {
+        public bool PassesFilter(PickupIndex pickupIndex) {
+            if (bannedItemTag == ItemTag.Any) {
                 return true;
             }
             PickupDef pickupDef = PickupCatalog.GetPickupDef(pickupIndex);
-            if (pickupDef.itemIndex != ItemIndex.None)
-            {
+            if (pickupDef.itemIndex != ItemIndex.None) {
                 return !ItemCatalog.GetItemDef(pickupDef.itemIndex).ContainsTag(bannedItemTag);
             }
             return true;
         }
 
         [Server]
-        private UniquePickup PickFromList(List<PickupIndex> dropList)
-        {
-            if (!NetworkServer.active)
-            {
+        private UniquePickup PickFromList(List<PickupIndex> dropList) {
+            if (!NetworkServer.active) {
                 return UniquePickup.none;
             }
             UniquePickup currentPickup = UniquePickup.none;
-            if (dropList != null && dropList.Count > 0)
-            {
+            if (dropList != null && dropList.Count > 0) {
                 currentPickup = new UniquePickup(Run.instance.treasureRng.NextElementUniform(dropList.Where(PassesFilter).ToList()));
             }
             //Debug.Log("PickFromList :: " + currentPickup.pickupIndex.pickupDef.nameToken);
@@ -403,10 +467,8 @@ namespace LunarConstructor
         }
 
         [Server]
-        public void OnPurchase(Interactor interactor)
-        {
-            if (!NetworkServer.active)
-            {
+        public void OnPurchase(Interactor interactor) {
+            if (!NetworkServer.active) {
                 Debug.LogWarning("[Server] function 'ConstructorManager::OnPurchase(RoR2.Interactor)' called on client");
                 return;
             }
@@ -417,6 +479,7 @@ namespace LunarConstructor
 
             CharacterBody interactorBody = interactor.GetComponent<CharacterBody>();
             ItemDef itemToTake = GetAndConsumeItem(interactorBody, out ItemTier scrapTier);
+            cachedInteractor = interactorBody;
 
             if (itemToTake) {
                 // remove the item
@@ -444,8 +507,7 @@ namespace LunarConstructor
             }
 
             // generic effect + chat slop
-            EffectManager.SpawnEffect(shrineUseEffect, new EffectData()
-            {
+            EffectManager.SpawnEffect(shrineUseEffect, new EffectData() {
                 origin = gameObject.transform.position,
                 rotation = Quaternion.identity,
                 scale = 3f,
@@ -454,54 +516,43 @@ namespace LunarConstructor
             //Chat.SendBroadcastChat(new Chat.SimpleChatMessage() { baseToken = "<style=cEvent><color=#307FFF>goont.</color></style>" });
         }
 
-        private ItemDef GetAndConsumeItem(CharacterBody interactorBody, out ItemTier scrapTier)
-        {
+        private ItemDef GetAndConsumeItem(CharacterBody interactorBody, out ItemTier scrapTier) {
             ItemDef itemToTake = GetBodyHighestScrap(interactorBody, out var itemTier);
 
             bool flag = false;
 
-            if (itemToTake == null) 
-            {
+            if (itemToTake == null) {
                 scrapTier = ItemTier.NoTier;
-                return null; 
+                return null;
             }
 
-            if (itemToTake == DLC1Content.Items.RegeneratingScrap)
-            {
+            if (itemToTake == DLC1Content.Items.RegeneratingScrap) {
                 ItemIndex originalItemIndex = itemToTake.itemIndex;
-                Inventory.ItemTransformation itemTransformation = new Inventory.ItemTransformation
-                {
+                Inventory.ItemTransformation itemTransformation = new Inventory.ItemTransformation {
                     originalItemIndex = originalItemIndex,
                     newItemIndex = ItemIndex.None,
                     maxToTransform = 1,
                     forbidTempItems = true
                 };
-                if (itemTransformation.originalItemIndex == DLC1Content.Items.RegeneratingScrap.itemIndex)
-                {
+                if (itemTransformation.originalItemIndex == DLC1Content.Items.RegeneratingScrap.itemIndex) {
                     flag = true;
                     itemTransformation.newItemIndex = DLC1Content.Items.RegeneratingScrapConsumed.itemIndex;
                 }
                 itemTransformation.TryTransform(interactorBody.inventory, out var result2);
 
-                if (flag)
-                {
+                if (flag) {
                     EntitySoundManager.EmitSoundServer(NetworkSoundEventCatalog.FindNetworkSoundEventIndex("Play_item_proc_regenScrap_consume"), interactorBody.gameObject);
                     ModelLocator component = interactorBody.GetComponent<ModelLocator>();
-                    if ((bool)component)
-                    {
+                    if ((bool)component) {
                         Transform modelTransform = component.modelTransform;
-                        if ((bool)modelTransform)
-                        {
+                        if ((bool)modelTransform) {
                             CharacterModel component2 = modelTransform.GetComponent<CharacterModel>();
-                            if ((bool)component2)
-                            {
+                            if ((bool)component2) {
                                 List<GameObject> itemDisplayObjects = component2.GetItemDisplayObjects(DLC1Content.Items.RegeneratingScrap.itemIndex);
-                                if (itemDisplayObjects.Count > 0)
-                                {
+                                if (itemDisplayObjects.Count > 0) {
                                     GameObject gameObject = itemDisplayObjects[0];
                                     GameObject effectPrefab = Addressables.LoadAssetAsync<GameObject>("RoR2/DLC1/RegeneratingScrap/RegeneratingScrapExplosionDisplay.prefab").WaitForCompletion();
-                                    EffectData effectData = new EffectData
-                                    {
+                                    EffectData effectData = new EffectData {
                                         origin = gameObject.transform.position,
                                         rotation = gameObject.transform.rotation
                                     };
@@ -513,9 +564,7 @@ namespace LunarConstructor
                     EffectManager.SimpleMuzzleFlash(Addressables.LoadAssetAsync<GameObject>("RoR2/DLC1/RegeneratingScrap/RegeneratingScrapExplosionInPrinter.prefab").WaitForCompletion(), gameObject, "Circle", transmit: true);
                     CharacterMasterNotificationQueue.SendTransformNotification(interactorBody.master, DLC1Content.Items.RegeneratingScrap.itemIndex, DLC1Content.Items.RegeneratingScrapConsumed.itemIndex, CharacterMasterNotificationQueue.TransformationType.Default);
                 }
-            }
-            else 
-            {
+            } else {
                 interactorBody.inventory.RemoveItemPermanent(itemToTake);
             }
 
@@ -523,21 +572,17 @@ namespace LunarConstructor
             return itemToTake;
         }
 
-        public bool ShouldDisplayHologram(GameObject viewer)
-        {
+        public bool ShouldDisplayHologram(GameObject viewer) {
             return true;
         }
 
-        public GameObject GetHologramContentPrefab()
-        {
+        public GameObject GetHologramContentPrefab() {
             return LunarConstructor.ConstructorHologramContent;
         }
 
-        public void UpdateHologramContent(GameObject hologramContentObject, Transform viewerBody)
-        {
+        public void UpdateHologramContent(GameObject hologramContentObject, Transform viewerBody) {
             var component = hologramContentObject.GetComponent<ConstructorCostHologramContent>();
-            if (component)
-            {
+            if (component) {
                 component.displayValue = "1 Scrap";
                 switch (currentPickupTierIndex) {
                     case 1:
