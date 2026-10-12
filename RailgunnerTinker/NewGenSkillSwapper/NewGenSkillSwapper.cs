@@ -44,7 +44,7 @@ namespace NewGenSkillSwapper {
             skillsToSwap = Config.Bind<string>("RailgunnerTinker", "skillsToSwap", "(Tinker,Railgunner,special),(PassiveStatsFromScrap,Railgunner,passive),(Tinker,Swarmling,special)", "This should NOT be touched if you don't know what you're doing. Theoretically you could use this to add Tinker to more survivors but it's not a supported feature. Here be Dragons! A list of skills to swap. Should be formatted like this: (skillDefName,survivorDefName,family),(otherSkillDefName,otherSurvivorDefName,otherFamily)");
             akBankToTransfer = Config.Bind<string>("RailgunnerTinker", "akBankToTransfer", "", "This should NOT be touched if you don't know what you're doing. Should be formatted like this (origin -> target): (survivorDefName,survivorDefName)");
             debugMode = Config.Bind<bool>("RailgunnerTinker", "debugMode", false, "Prints all names for skills and survivors.");
-            Debug.Log("Parsing Config...");
+            Log.Debug("Parsing Config...");
             string[] array = skillsToSwap.Value.Trim().Split("),(");
             string[] array2 = array;
             foreach (string item in array2) {
@@ -80,7 +80,7 @@ namespace NewGenSkillSwapper {
                 Log.Debug("Printing survivor names... Disable debugMode in config to disable this!");
                 {
                     foreach (SurvivorDef item2 in SurvivorCatalog.allSurvivorDefs) {
-                        Debug.Log(item2.cachedName);
+                        Log.Debug(item2.cachedName);
                     }
                     return;
                 }
@@ -93,7 +93,7 @@ namespace NewGenSkillSwapper {
                 SurvivorDef survivorOriginDef = SurvivorCatalog.FindSurvivorDef(akbankItem.survivorOrigin);
                 SurvivorDef survivorTargetDef = SurvivorCatalog.FindSurvivorDef(akbankItem.survivorTarget);
                 if (!survivorOriginDef || !survivorTargetDef) {
-                    Debug.Log("Couldn't transfer AKBank. Skipping...");
+                    Log.Debug("Couldn't transfer AKBank. Skipping...");
                     continue;
                 }
                 AddSoundbank(survivorOriginDef, survivorTargetDef);
@@ -108,18 +108,18 @@ namespace NewGenSkillSwapper {
                     }
                 }
                 if (skillIdx == -1) {
-                    Debug.Log("Couldn't find skill. Skipping...");
+                    Log.Debug("Couldn't find skill. Skipping...");
                     continue;
                 }
                 SkillDef skillDef = SkillCatalog.GetSkillDef(skillIdx);
                 SurvivorDef survivorDef = SurvivorCatalog.FindSurvivorDef(item.survivorName);
                 if (!skillDef || !survivorDef) {
-                    Debug.Log("Couldn't add skill. Skipping...");
+                    Log.Debug("Couldn't add skill. Skipping...");
                     continue;
                 }
                 SkillLocator skillLocator = survivorDef.bodyPrefab.GetComponent<SkillLocator>();
                 if (!(UnityEngine.Object)(object)skillLocator) {
-                    Debug.Log("No SkillLocator on " + survivorDef.cachedName + "!");
+                    Log.Debug("No SkillLocator on " + survivorDef.cachedName + "!");
                     continue;
                 }
                 SkillFamily skillFamily;
@@ -151,39 +151,39 @@ namespace NewGenSkillSwapper {
                         break;
                     case "extrafirst":
                         if (!ExtraSkillSlotsCompat.IsEnabled()) {
-                            Debug.Log("ExtraSkillSlots entry detected, but EntrySkillSlots not installed or unsupported?");
+                            Log.Debug("ExtraSkillSlots entry detected, but EntrySkillSlots not installed or unsupported?");
                             break;
                         }
                         //ExtraSkillSlotsCompat.MatchConfig_ESSCompat(survivorDef.bodyPrefab, skillDef, 0);
                         break;
                     case "extrasecond":
                         if (!ExtraSkillSlotsCompat.IsEnabled()) {
-                            Debug.Log("ExtraSkillSlots entry detected, but EntrySkillSlots not installed or unsupported?");
+                            Log.Debug("ExtraSkillSlots entry detected, but EntrySkillSlots not installed or unsupported?");
                             break;
                         }
                         //ExtraSkillSlotsCompat.MatchConfig_ESSCompat(survivorDef.bodyPrefab, skillDef, 1);
                         break;
                     case "extrathird":
                         if (!ExtraSkillSlotsCompat.IsEnabled()) {
-                            Debug.Log("ExtraSkillSlots entry detected, but EntrySkillSlots not installed or unsupported?");
+                            Log.Debug("ExtraSkillSlots entry detected, but EntrySkillSlots not installed or unsupported?");
                             break;
                         }
                         //ExtraSkillSlotsCompat.MatchConfig_ESSCompat(survivorDef.bodyPrefab, skillDef, 2);
                         break;
                     case "extrafourth":
                         if (!ExtraSkillSlotsCompat.IsEnabled()) {
-                            Debug.Log("ExtraSkillSlots entry detected, but EntrySkillSlots not installed or unsupported?");
+                            Log.Debug("ExtraSkillSlots entry detected, but EntrySkillSlots not installed or unsupported?");
                             break;
                         }
                         //ExtraSkillSlotsCompat.MatchConfig_ESSCompat(survivorDef.bodyPrefab, skillDef, 3);
                         break;
                     default:
-                        Debug.LogError("Family is not set for " + item.skillName + ", " + item.survivorName + "!");
+                        Log.Error("Family is not set for " + item.skillName + ", " + item.survivorName + "!");
                         break;
                 }
 
 
-                DrifterSkills.MatchConfig_DrifterExtension(survivorDef.bodyPrefab);
+                DrifterSkills.MatchConfig_DrifterExtension(survivorDef.bodyPrefab, skillIdx);
             }
         }
 
@@ -203,7 +203,6 @@ namespace NewGenSkillSwapper {
 
         [SystemInitializer(new Type[] { typeof(SkillCatalog), typeof(SurvivorCatalog) })]
         public static void Init() {
-            Log.Debug("Initializing!");
             DrifterSkills.Init();
             MatchConfig();
             PrintDebug();
@@ -217,7 +216,7 @@ namespace NewGenSkillSwapper {
                 AkBank fsBank = origin.GetComponent<AkBank>();
                 CopyAkBank(fsBank, target);
             } catch {
-                Debug.Log($"NewGenSkillSwapper - Failed to copy AKBank from {survivorOrigin.cachedName} to {survivorTarget.cachedName}");
+                Log.Debug($"NewGenSkillSwapper - Failed to copy AKBank from {survivorOrigin.cachedName} to {survivorTarget.cachedName}");
             }
         }
 

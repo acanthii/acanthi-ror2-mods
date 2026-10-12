@@ -30,9 +30,8 @@ namespace NewGenSkillSwapper {
         }
 
         public static void Init() {
-            Log.Debug("Initializing!");
             dlc3EntitlementDef = Addressables.LoadAssetAsync<EntitlementDef>("RoR2/DLC3/entitlementDLC3.asset").WaitForCompletion();
-            tinkerSkillDef = SkillCatalog.GetSkillDef(SkillCatalog.FindSkillIndexByName("tinker"));
+            tinkerSkillDef = SkillCatalog.GetSkillDef(SkillCatalog.FindSkillIndexByName("Tinker"));
             passiveStatsFromScrapSkillDef = SkillCatalog.GetSkillDef(SkillCatalog.FindSkillIndexByName("PassiveStatsFromScrap"));
             rerollTrackingPrefab = Addressables.LoadAssetAsync<GameObject>("RoR2/DLC3/Drifter/TinkerIndicatorReroll.prefab").WaitForCompletion();
             breakTrackingPrefab = Addressables.LoadAssetAsync<GameObject>("RoR2/DLC3/Drifter/TinkerIndicatorBreak.prefab").WaitForCompletion();
@@ -64,9 +63,7 @@ namespace NewGenSkillSwapper {
         }
 
         private static void DrifterTrashToTreasureController_Start(On.RoR2.DrifterTrashToTreasureController.orig_Start orig, DrifterTrashToTreasureController self) {
-            Log.Debug($"DrifterTrashToTreasureController_Start Starting...");
             if (!self.TryGetComponent<CharacterBody>(out CharacterBody characterBody)) {
-                Log.Debug($"There's no body! DrifterTrashToTreasureController_Start returning.");
                 return;
             }
 
@@ -86,11 +83,7 @@ namespace NewGenSkillSwapper {
                 return;
             }
 
-            Log.Debug($"DrifterTrashToTreasureController_Start Running orig(self)...");
-
             orig(self);
-
-            Log.Debug($"DrifterTrashToTreasureController_Start is enabled? {self.enabled}");
         }
 
         private static void DrifterTracker_Awake(On.RoR2.DrifterTracker.orig_Awake orig, DrifterTracker self) {
@@ -100,51 +93,28 @@ namespace NewGenSkillSwapper {
             orig(self);
         }
 
-        public static void MatchConfig_DrifterExtension(GameObject body) {
-            Log.Debug("MatchConfig_DrifterExtension Initializing!");
-            if (!body.TryGetComponent<SkillLocator>(out var skillLocator)) { return; }
-            GenericSkill[] skills = [skillLocator.primary, skillLocator.secondary, skillLocator.utility, skillLocator.special];
-            GenericSkill trackerSkill = null;
-
-            foreach (GenericSkill skill in skills) {
-                if (skill.skillDef == tinkerSkillDef) {
-                    trackerSkill = skill;
-                    break;
-                }
+        public static void MatchConfig_DrifterExtension(GameObject bodyPrefab, int skillIdx) {
+            if (skillIdx == passiveStatsFromScrapSkillDef.skillIndex) {
+                TryAddTrashToTreasureController(bodyPrefab);
             }
-
-            if (trackerSkill != null) {
-                DrifterTracker tracker;
-                if (!body.gameObject.GetComponent<DrifterTracker>()) {
-                    tracker = body.gameObject.AddComponent<DrifterTracker>();
-                } else {
-                    tracker = body.gameObject.GetComponent<DrifterTracker>();
-                }
-
-                tracker.skillInstance = trackerSkill;
+            if (skillIdx == tinkerSkillDef.skillIndex) {
+                TryAddDrifterTracker(bodyPrefab);
             }
+        }
 
-            // Passive
-
-            Log.Debug($"Body: {body.name}; Passive: {passiveStatsFromScrapSkillDef.name}"); //.name is temporary, dw.
-
-            foreach (var skill in body.GetComponents<GenericSkill>()) {
-                Log.Debug($"Skill: {skill.skillDef.name}");
+        public static void TryAddDrifterTracker(GameObject bodyPrefab) {
+            DrifterTracker tracker;
+            if (!bodyPrefab.gameObject.GetComponent<DrifterTracker>()) {
+                tracker = bodyPrefab.gameObject.AddComponent<DrifterTracker>();
+            } else {
+                tracker = bodyPrefab.gameObject.GetComponent<DrifterTracker>();
             }
+            //tracker.skillInstance = tinkerSkillDef;
+        }
 
-            var skillFoundFlag = false;
-
-            foreach (GenericSkill skill in body.GetComponents<GenericSkill>()) {
-                if (passiveStatsFromScrapSkillDef == null)
-                    passiveStatsFromScrapSkillDef = SkillCatalog.GetSkillDef(SkillCatalog.FindSkillIndexByName("PassiveStatsFromScrap"));
-                if (skill.skillDef == passiveStatsFromScrapSkillDef) {
-                    skillFoundFlag = true;
-                }
-            }
-
-            if (skillFoundFlag && !body.GetComponent<DrifterTrashToTreasureController>()) {
-                Log.Debug($"DrifterTrashToTreasureController_Start added!");
-                body.AddComponent<DrifterTrashToTreasureController>();
+        public static void TryAddTrashToTreasureController(GameObject bodyPrefab) {
+            if (!bodyPrefab.GetComponent<DrifterTrashToTreasureController>()) {
+                bodyPrefab.AddComponent<DrifterTrashToTreasureController>();
             }
         }
 
